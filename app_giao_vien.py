@@ -99,6 +99,7 @@ elif choice == "📅 Thời Khóa Biểu":
                 c_id = cls['id']
                 siso = class_counts.get(c_id, 0)
                 
+                # Bỏ qua các lớp cũ chưa có lịch hợp lệ
                 if c_day in days_list and c_ca in ca_list:
                     row_idx = ca_list.index(c_ca)
                     cell_content = f"📚 **{c_name}**\n👥 Sĩ số: {siso} HS"
@@ -157,12 +158,13 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                 
                 with st.form("edit_class_form"):
                     c1, c2, c3 = st.columns(3)
-                    with c1: e_c_name = st.text_input("Tên Lớp", value=curr_c_data['class_name'])
+                    with c1: e_c_name = st.text_input("Tên Lớp", value=curr_c_data.get('class_name', ''))
                     with c2: 
                         list_thu = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
-                        idx_thu = list_thu.index(curr_c_data['thu_hoc']) if curr_c_data.get('thu_hoc') in list_thu else 0
+                        val_thu = curr_c_data.get('thu_hoc', "Thứ Hai")
+                        idx_thu = list_thu.index(val_thu) if val_thu in list_thu else 0
                         e_thu = st.selectbox("Thứ học", list_thu, index=idx_thu)
-                    with c3: e_c_fee = st.number_input("Học phí / Buổi", min_value=0, step=10000, value=int(curr_c_data['tuition_fee']))
+                    with c3: e_c_fee = st.number_input("Học phí / Buổi", min_value=0, step=10000, value=int(curr_c_data.get('tuition_fee', 0)))
                     
                     c4, c5 = st.columns(2)
                     with c4:
@@ -171,12 +173,13 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                             "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
                             "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"
                         ]
-                        idx_ca = list_ca.index(curr_c_data['ca_hoc']) if curr_c_data.get('ca_hoc') in list_ca else 0
+                        val_ca = curr_c_data.get('ca_hoc', "🌅 Sáng Ca 1 (07:30 - 09:00)")
+                        idx_ca = list_ca.index(val_ca) if val_ca in list_ca else 0
                         e_ca = st.selectbox("Ca học", list_ca, index=idx_ca)
                     with c5:
-                        e_c_sched = st.text_input("Ghi chú lịch", value=curr_c_data['schedule'] if curr_c_data['schedule'] else "")
+                        e_c_sched = st.text_input("Ghi chú lịch", value=curr_c_data.get('schedule', ''))
                         
-                    e_c_status = st.radio("Trạng thái Lớp:", ["Đang hoạt động", "Đã đóng"], index=0 if curr_c_data['status']=="Đang hoạt động" else 1, horizontal=True)
+                    e_c_status = st.radio("Trạng thái Lớp:", ["Đang hoạt động", "Đã đóng"], index=0 if curr_c_data.get('status')=="Đang hoạt động" else 1, horizontal=True)
                     st.markdown("---")
                     del_class_confirm = st.checkbox("⚠️ Xác nhận XÓA VĨNH VIỄN lớp này")
                     btn1, btn2 = st.columns(2)
@@ -200,7 +203,18 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
         st.subheader("📋 Danh Sách Các Lớp & Lịch Trình")
         res_c = supabase.table("classes").select("*").execute()
         if res_c.data:
-            df_c = pd.DataFrame(res_c.data)[['id', 'class_name', 'thu_hoc', 'ca_hoc', 'tuition_fee', 'status']]
+            df_c = pd.DataFrame(res_c.data)
+            # Khắc phục lỗi: Bổ sung cột ảo nếu lớp cũ chưa có dữ liệu thứ/ca
+            if 'thu_hoc' not in df_c.columns:
+                df_c['thu_hoc'] = "Chưa xếp"
+            if 'ca_hoc' not in df_c.columns:
+                df_c['ca_hoc'] = "Chưa xếp"
+                
+            # Đảm bảo điền giá trị "Chưa xếp" cho các ô bị NaN (nếu có cột nhưng dữ liệu trống)
+            df_c['thu_hoc'] = df_c['thu_hoc'].fillna("Chưa xếp")
+            df_c['ca_hoc'] = df_c['ca_hoc'].fillna("Chưa xếp")
+
+            df_c = df_c[['id', 'class_name', 'thu_hoc', 'ca_hoc', 'tuition_fee', 'status']]
             df_c.columns = ['ID', 'Tên Lớp', 'Thứ Học', 'Ca Học', 'Học Phí', 'Trạng Thái']
             st.dataframe(df_c, use_container_width=True, hide_index=True)
 
