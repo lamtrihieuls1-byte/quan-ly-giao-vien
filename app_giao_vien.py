@@ -8,11 +8,14 @@ SUPABASE_URL = "https://ymjwfregjyndewmlzhvk.supabase.co"
 SUPABASE_KEY = "sb_publishable_RlsBLKOJsnkBK2AhRGNlDA_6xN1y9HI" 
 PASSWORD_CO_GIAO = "123qwe" # Mật khẩu đăng nhập phần mềm
 
+# --- CẤU HÌNH API KEY CHO TRỢ LÝ AI (Đã lưu sẵn để dùng ngay) ---
+DEFAULT_GEMINI_API_KEY = "DÁN_API_KEY_GOOGLE_GEMINI_CỦA_BẠN_VÀO_ĐÂY"
+
 try:
     from supabase import create_client, Client
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
-    st.error(f"⚠️ Lỗi kết nối Supabase: {e}. Hãy đảm bảo bạn đã gõ 'pip install supabase' trong cmd.")
+    st.error(f"⚠️ Lỗi kết nối Supabase: {e}")
 
 st.set_page_config(page_title="English Teacher Assistant", page_icon="👩‍🏫", layout="wide")
 
@@ -45,7 +48,7 @@ st.sidebar.markdown("---")
 menu = ["🏠 Trang Chủ", "🎓 Quản lý Lớp & Học Sinh", "💰 Điểm danh & Học phí", "📚 Không gian Giáo án", "🤖 Trợ lý AI (Tạo bài tập)"]
 choice = st.sidebar.radio("Vui lòng chọn chức năng:", menu)
 st.sidebar.markdown("---")
-st.sidebar.info("Phần mềm hỗ trợ giảng dạy Tiếng Anh.\nĐám mây Supabase ☁️ & Bảo mật 🔒")
+st.sidebar.info("Phần mềm hỗ trợ giảng dạy Tiếng Anh.\nĐám mây Supabase ☁️ & Trợ lý AI 🤖")
 
 # ==================== ĐIỀU HƯỚNG CÁC TRANG ====================
 if choice == "🏠 Trang Chủ":
@@ -407,22 +410,18 @@ elif choice == "💰 Điểm danh & Học phí":
             with c_rep2: rep_month = st.selectbox("📆 Chọn Tháng xem chi tiết", range(1, 13), index=current_month-1, key="rep_m")
             
             rep_month_str = f"{rep_year}-{rep_month:02d}"
-            
-            # Lấy toàn bộ các khoản đã đóng trong năm
             res_rep = supabase.table("tuition_payments").select("student_id, month, extra_fee, discount").eq("status", "✅ Đã đóng").like("month", f"{rep_year}-%").execute()
             
             if not res_rep.data:
                 st.warning(f"Chưa có dữ liệu thu tiền nào trong năm {rep_year}.")
             else:
                 tp_list = res_rep.data
-                # Lấy danh sách học sinh, lớp và học phí
                 res_cls_all = supabase.table("classes").select("id, class_name, tuition_fee").execute()
                 cls_map = {c['id']: c for c in res_cls_all.data} if res_cls_all.data else {}
                 
                 res_st_all = supabase.table("students").select("id, full_name, class_id").execute()
                 st_map = {s['id']: s for s in res_st_all.data} if res_st_all.data else {}
                 
-                # Lấy tất cả điểm danh 'Có mặt' trong năm để tính toán
                 res_att_year = supabase.table("attendance").select("student_id, date, status").eq("status", "Có mặt").like("date", f"{rep_year}-%").execute()
                 att_year_list = res_att_year.data if res_att_year.data else []
                 
@@ -436,7 +435,6 @@ elif choice == "💰 Điểm danh & Học phí":
                         if c_id in cls_map:
                             cls_info = cls_map[c_id]
                             fee_p = float(cls_info['tuition_fee'])
-                            # Đếm số buổi có mặt trong tháng m_tp của học sinh s_id
                             count_p = len([a for a in att_year_list if a['student_id'] == s_id and a['date'].startswith(m_tp)])
                             rev = (count_p * fee_p) + float(tp['extra_fee']) - float(tp['discount'])
                             report_rows.append({
@@ -530,22 +528,45 @@ elif choice == "📚 Không gian Giáo án":
 
 elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
     st.title("🤖 Trợ lý AI - Soạn Đề Thi Chuyên Lạng Sơn")
+    st.info("💡 Trợ lý AI đã được kích hoạt sẵn sàng hỗ trợ cô giáo soạn bài tập, đề thi nhanh chóng!")
+    
     try:
         import google.generativeai as genai
-        api_key = st.text_input("🔑 Nhập mã API Key Google Gemini:", type="password")
-        if api_key:
-            genai.configure(api_key=api_key)
-            task = st.selectbox("📌 Chọn loại bài tập:", ["10 câu Trắc nghiệm ABCD", "Điền từ vào chỗ trống", "Viết lại câu", "Đề thi thử vào 10 chuyên Lạng Sơn"])
+        
+        if not DEFAULT_GEMINI_API_KEY or DEFAULT_GEMINI_API_KEY == "DÁN_API_KEY_GOOGLE_GEMINI_CỦA_BẠN_VÀO_ĐÂY":
+            st.warning("⚠️ Vui lòng cấu hình API Key của Google Gemini trong mã nguồn để sử dụng.")
+        else:
+            genai.configure(api_key=DEFAULT_GEMINI_API_KEY)
+            task = st.selectbox("📌 Chọn loại bài tập:", [
+                "10 câu Trắc nghiệm ABCD", 
+                "Điền từ vào chỗ trống", 
+                "Viết lại câu", 
+                "Đề thi thử vào 10 chuyên Lạng Sơn"
+            ])
             user_in = st.text_area("📝 Nhập yêu cầu cụ thể:", placeholder="Ví dụ: Tạo đề thi thử bám sát đề chuyên Chu Văn An Lạng Sơn...")
-            if st.button("🚀 Kích hoạt AI"):
-                if user_in.strip():
-                    with st.spinner("🤖 AI đang soạn đề..."):
+            
+            if st.button("🚀 Kích hoạt AI tạo đề"):
+                if user_in.strip() == "":
+                    st.error("⚠️ Vui lòng nhập nội dung yêu cầu trước!")
+                else:
+                    with st.spinner("🤖 AI đang tự động soạn đề thi..."):
                         try:
                             models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
                             mod = models[0] if models else 'gemini-pro'
                             for m in models:
                                 if 'flash' in m.lower(): mod = m; break
-                            res = genai.GenerativeModel(mod).generate_content(f"Yêu cầu: {task}\nChi tiết: {user_in}\nCó đáp án chi tiết ở cuối.")
+                            
+                            prompt = f"""
+                            Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
+                            LOẠI BÀI TẬP: {task}
+                            YÊU CẦU CHI TIẾT: {user_in}
+                            HƯỚNG DẪN: Trình bày rõ ràng, đẹp mắt, bắt buộc có phần ĐÁP ÁN chi tiết ở cuối.
+                            """
+                            res = genai.GenerativeModel(mod).generate_content(prompt)
+                            st.success("🎉 Đã soạn xong đề thi! Cô giáo có thể Copy để sử dụng.")
+                            st.markdown("---")
                             st.markdown(res.text)
-                        except Exception as e: st.error(f"Lỗi AI: {e}")
-    except ImportError: st.error("Chưa cài đặt thư viện AI.")
+                        except Exception as e:
+                            st.error(f"⚠️ Lỗi kết nối AI: {e}")
+    except ImportError:
+        st.error("⚠️ Lỗi: Thư viện `google-generativeai` chưa được cài đặt trên hệ thống Cloud. Hãy đảm bảo bạn đã thêm nó vào file `requirements.txt` trên GitHub.")
