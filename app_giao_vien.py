@@ -9,7 +9,7 @@ SUPABASE_KEY = "sb_publishable_RlsBLKOJsnkBK2AhRGNlDA_6xN1y9HI"
 PASSWORD_CO_GIAO = "123qwe" # Mật khẩu đăng nhập phần mềm
 
 # --- CẤU HÌNH API KEY CHO TRỢ LÝ AI (Đã lưu sẵn để dùng ngay) ---
-DEFAULT_GEMINI_API_KEY = "DÁN_API_KEY_GOOGLE_GEMINI_CỦA_BẠN_VÀO_ĐÂY"
+DEFAULT_GEMINI_API_KEY = "AIzaSyDbYJg_-S9_1_Nkkc6zG1KZUWmaAKfo7RY"
 
 try:
     from supabase import create_client, Client
@@ -533,7 +533,7 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
     try:
         import google.generativeai as genai
         
-        if not DEFAULT_GEMINI_API_KEY or DEFAULT_GEMINI_API_KEY == "DÁN_API_KEY_GOOGLE_GEMINI_CỦA_BẠN_VÀO_ĐÂY":
+        if not DEFAULT_GEMINI_API_KEY or DEFAULT_GEMINI_API_KEY == "AIzaSyDbYJg_-S9_1_Nkkc6zG1KZUWmaAKfo7RY":
             st.warning("⚠️ Vui lòng cấu hình API Key của Google Gemini trong mã nguồn để sử dụng.")
         else:
             genai.configure(api_key=DEFAULT_GEMINI_API_KEY)
