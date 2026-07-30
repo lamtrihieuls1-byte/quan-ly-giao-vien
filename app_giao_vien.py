@@ -402,22 +402,88 @@ elif choice == "💰 Điểm danh & Học phí":
         with tab_baocao:
             st.subheader("📊 Báo cáo Doanh Thu Tổng Quát")
             current_year = datetime.date.today().year
-            rep_year = st.selectbox("📅 Chọn Năm báo cáo", [current_year-1, current_year, current_year+1], index=1)
-            res_rep = supabase.table("tuition_payments").select("month, extra_fee, discount, students(full_name, classes(class_name, tuition_fee, id))").eq("status", "✅ Đã đóng").like("month", f"{rep_year}-%").execute()
+            c_rep1, c_rep2 = st.columns(2)
+            with c_rep1: rep_year = st.selectbox("📅 Chọn Năm báo cáo", [current_year-1, current_year, current_year+1], index=1, key="rep_y")
+            with c_rep2: rep_month = st.selectbox("📆 Chọn Tháng xem chi tiết", range(1, 13), index=current_month-1, key="rep_m")
+            
+            rep_month_str = f"{rep_year}-{rep_month:02d}"
+            
+            # Lấy toàn bộ các khoản đã đóng trong năm
+            res_rep = supabase.table("tuition_payments").select("student_id, month, extra_fee, discount").eq("status", "✅ Đã đóng").like("month", f"{rep_year}-%").execute()
             
             if not res_rep.data:
-                st.warning(f"Chưa có dữ liệu thu tiền trong năm {rep_year}.")
+                st.warning(f"Chưa có dữ liệu thu tiền nào trong năm {rep_year}.")
             else:
-                rep_rows = []
-                for r in res_rep.data:
-                    if r['students'] and r['students']['classes']:
-                        st_id_r = r['students']
-                        cls_r = st_id_r['classes']
-                        m_r = r['month']
-                        # đếm số buổi có mặt trong tháng đó của học sinh này
-                        # (để đơn giản và tối ưu, ta lấy trực tiếp từ bảng attendance)
-                        # ...
-                        pass
+                tp_list = res_rep.data
+                # Lấy danh sách học sinh, lớp và học phí
+                res_cls_all = supabase.table("classes").select("id, class_name, tuition_fee").execute()
+                cls_map = {c['id']: c for c in res_cls_all.data} if res_cls_all.data else {}
+                
+                res_st_all = supabase.table("students").select("id, full_name, class_id").execute()
+                st_map = {s['id']: s for s in res_st_all.data} if res_st_all.data else {}
+                
+                # Lấy tất cả điểm danh 'Có mặt' trong năm để tính toán
+                res_att_year = supabase.table("attendance").select("student_id, date, status").eq("status", "Có mặt").like("date", f"{rep_year}-%").execute()
+                att_year_list = res_att_year.data if res_att_year.data else []
+                
+                report_rows = []
+                for tp in tp_list:
+                    s_id = tp['student_id']
+                    m_tp = tp['month']
+                    if s_id in st_map:
+                        st_info = st_map[s_id]
+                        c_id = st_info['class_id']
+                        if c_id in cls_map:
+                            cls_info = cls_map[c_id]
+                            fee_p = float(cls_info['tuition_fee'])
+                            # Đếm số buổi có mặt trong tháng m_tp của học sinh s_id
+                            count_p = len([a for a in att_year_list if a['student_id'] == s_id and a['date'].startswith(m_tp)])
+                            rev = (count_p * fee_p) + float(tp['extra_fee']) - float(tp['discount'])
+                            report_rows.append({
+                                "month": m_tp,
+                                "class_name": cls_info['class_name'],
+                                "Thực thu": rev
+                            })
+                
+                if not report_rows:
+                    st.warning(f"Chưa đủ dữ liệu điểm danh tương ứng với các khoản đã thu trong năm {rep_year}.")
+                else:
+                    df_rep = pd.DataFrame(report_rows)
+                    total_year = df_rep['Thực thu'].sum()
+                    
+                    df_month = df_rep[df_rep['month'] == rep_month_str]
+                    total_month = df_month['Thực thu'].sum() if not df_month.empty else 0
+                    
+                    class_month_summary = pd.DataFrame()
+                    if not df_month.empty:
+                        class_month_summary = df_month.groupby('class_name')['Thực thu'].sum().reset_index().sort_values(by='Thực thu', ascending=False)
+                    
+                    st.markdown("---")
+                    m_rep1, m_rep2, m_rep3 = st.columns(3)
+                    m_rep1.metric(f"💰 TỔNG THU THÁNG {rep_month}", f"{int(total_month):,} VNĐ")
+                    m_rep2.metric(f"🏆 TỔNG DOANH THU NĂM {rep_year}", f"{int(total_year):,} VNĐ")
+                    
+                    top_class = class_month_summary.iloc[0]['class_name'] if not class_month_summary.empty else "Chưa có"
+                    top_class_rev = class_month_summary.iloc[0]['Thực thu'] if not class_month_summary.empty else 0
+                    m_rep3.metric(f"🔥 LỚP TOP 1 (Tháng {rep_month})", top_class, f"{int(top_class_rev):,} VNĐ")
+                    
+                    st.markdown("---")
+                    c_chart1, c_chart2 = st.columns(2)
+                    with c_chart1:
+                        st.markdown(f"**Doanh thu chi tiết theo lớp (Tháng {rep_month})**")
+                        if not class_month_summary.empty:
+                            class_display = class_month_summary.rename(columns={'class_name':'Tên Lớp', 'Thực thu': 'Doanh Thu'})
+                            class_display['Doanh Thu'] = class_display['Doanh Thu'].apply(lambda x: f"{int(x):,} VNĐ")
+                            st.dataframe(class_display, use_container_width=True, hide_index=True)
+                        else: 
+                            st.info(f"Tháng {rep_month} chưa có dữ liệu thu tiền.")
+                    with c_chart2:
+                        st.markdown(f"**Biểu đồ Doanh thu các tháng (Năm {rep_year})**")
+                        month_summary = df_rep.groupby('month')['Thực thu'].sum().reset_index()
+                        if not month_summary.empty:
+                            st.bar_chart(month_summary.rename(columns={'Thực thu': 'Doanh thu (VNĐ)'}).set_index('month'))
+                        else: 
+                            st.info("Chưa đủ dữ liệu để vẽ biểu đồ.")
 
 elif choice == "📚 Không gian Giáo án":
     st.title("📚 Không gian Giáo trình & Tài liệu trên Cloud")
