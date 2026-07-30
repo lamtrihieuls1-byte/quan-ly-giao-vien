@@ -654,15 +654,8 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
                 else:
                     with st.spinner("🤖 AI đang tự động soạn đề thi..."):
                         try:
-                            # Quét danh sách các model đang được phép sử dụng cho API Key này
-                            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                            
-                            # Thuật toán chọn thông minh: ưu tiên các bản ổn định, tránh các bản bị khóa
-                            mod = available_models[0] if available_models else 'gemini-pro'
-                            for target in ['models/gemini-1.5-flash-latest', 'models/gemini-1.5-flash', 'models/gemini-1.0-pro', 'models/gemini-pro']:
-                                if target in available_models:
-                                    mod = target
-                                    break
+                            # GIẢI PHÁP TỐI ƯU VÀ CỐ ĐỊNH: Chỉ sử dụng gemini-pro (phiên bản quốc dân, luôn hoạt động)
+                            mod = 'gemini-pro'
                             
                             prompt = f"""
                             Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
