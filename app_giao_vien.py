@@ -8,7 +8,7 @@ SUPABASE_URL = "https://ymjwfregjyndewmlzhvk.supabase.co"
 SUPABASE_KEY = "sb_publishable_RlsBLKOJsnkBK2AhRGNlDA_6xN1y9HI" 
 PASSWORD_CO_GIAO = "123qwe" # Mật khẩu đăng nhập phần mềm
 
-# Lấy API Key từ két sắt bảo mật của Streamlit (Không lộ code trên GitHub nữa)
+# Lấy API Key từ két sắt bảo mật của Streamlit
 try:
     DEFAULT_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 except:
@@ -84,7 +84,6 @@ elif choice == "📅 Thời Khóa Biểu":
             from collections import Counter
             class_counts = Counter([s['class_id'] for s in students_list])
             
-            # Khung giờ 5 ca mới
             ca_list = [
                 "🌅 Sáng Ca 1 (07:00 - 09:00)", 
                 "🌅 Sáng Ca 2 (09:00 - 11:00)", 
@@ -655,10 +654,8 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
                 else:
                     with st.spinner("🤖 AI đang tự động soạn đề thi..."):
                         try:
-                            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                            mod = models[0] if models else 'gemini-pro'
-                            for m in models:
-                                if 'flash' in m.lower(): mod = m; break
+                            # Cố định sử dụng model ổn định nhất hiện nay
+                            mod = 'gemini-1.5-flash'
                             
                             prompt = f"""
                             Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
