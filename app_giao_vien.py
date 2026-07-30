@@ -67,7 +67,7 @@ if choice == "🏠 Trang Chủ":
     col3.metric("Hệ thống Cloud", "Đã kết nối ☁️")
 
 elif choice == "📅 Thời Khóa Biểu":
-    st.title("📅 Thời Khóa Biểu Tuần (Sáng - Chiều - Tối)")
+    st.title("📅 Thời Khóa Biểu (5 Ca/Ngày)")
     st.info("💡 Bảng thời khóa biểu tự động tổng hợp các lớp đang hoạt động theo ca và ngày trong tuần.")
     
     try:
@@ -78,28 +78,29 @@ elif choice == "📅 Thời Khóa Biểu":
             classes_list = res_c.data
             students_list = res_st.data if res_st.data else []
             
-            # Đếm sĩ số học sinh đang học của từng lớp
             from collections import Counter
             class_counts = Counter([s['class_id'] for s in students_list])
             
-            # Khung giờ các ca
-            ca_list = ["🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
-                       "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
-                       "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"]
+            # Khung giờ 5 ca mới
+            ca_list = [
+                "🌅 Sáng Ca 1 (07:00 - 09:00)", 
+                "🌅 Sáng Ca 2 (09:00 - 11:00)", 
+                "☀️ Chiều Ca 1 (14:00 - 16:00)", 
+                "🌙 Tối Ca 1 (17:30 - 19:30)", 
+                "🌙 Tối Ca 2 (19:30 - 21:30)"
+            ]
             
             days_list = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
             
-            # Tạo bảng hiển thị
             tkb_data = {day: ["-"] * len(ca_list) for day in days_list}
             
             for cls in classes_list:
                 c_day = cls.get('thu_hoc', 'Thứ Hai')
-                c_ca = cls.get('ca_hoc', '🌅 Sáng Ca 1 (07:30 - 09:00)')
+                c_ca = cls.get('ca_hoc', '🌅 Sáng Ca 1 (07:00 - 09:00)')
                 c_name = cls['class_name']
                 c_id = cls['id']
                 siso = class_counts.get(c_id, 0)
                 
-                # Bỏ qua các lớp cũ chưa có lịch hợp lệ
                 if c_day in days_list and c_ca in ca_list:
                     row_idx = ca_list.index(c_ca)
                     cell_content = f"📚 **{c_name}**\n👥 Sĩ số: {siso} HS"
@@ -130,9 +131,11 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                 c4, c5 = st.columns(2)
                 with c4: 
                     sel_ca = st.selectbox("Chọn Ca Học", [
-                        "🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
-                        "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
-                        "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"
+                        "🌅 Sáng Ca 1 (07:00 - 09:00)", 
+                        "🌅 Sáng Ca 2 (09:00 - 11:00)", 
+                        "☀️ Chiều Ca 1 (14:00 - 16:00)", 
+                        "🌙 Tối Ca 1 (17:30 - 19:30)", 
+                        "🌙 Tối Ca 2 (19:30 - 21:30)"
                     ])
                 with c5: schedule_note = st.text_input("Ghi chú lịch (VD: 2 buổi/tuần)", placeholder="Tùy chọn...")
 
@@ -169,11 +172,13 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                     c4, c5 = st.columns(2)
                     with c4:
                         list_ca = [
-                            "🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
-                            "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
-                            "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"
+                            "🌅 Sáng Ca 1 (07:00 - 09:00)", 
+                            "🌅 Sáng Ca 2 (09:00 - 11:00)", 
+                            "☀️ Chiều Ca 1 (14:00 - 16:00)", 
+                            "🌙 Tối Ca 1 (17:30 - 19:30)", 
+                            "🌙 Tối Ca 2 (19:30 - 21:30)"
                         ]
-                        val_ca = curr_c_data.get('ca_hoc', "🌅 Sáng Ca 1 (07:30 - 09:00)")
+                        val_ca = curr_c_data.get('ca_hoc', "🌅 Sáng Ca 1 (07:00 - 09:00)")
                         idx_ca = list_ca.index(val_ca) if val_ca in list_ca else 0
                         e_ca = st.selectbox("Ca học", list_ca, index=idx_ca)
                     with c5:
@@ -204,13 +209,11 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
         res_c = supabase.table("classes").select("*").execute()
         if res_c.data:
             df_c = pd.DataFrame(res_c.data)
-            # Khắc phục lỗi: Bổ sung cột ảo nếu lớp cũ chưa có dữ liệu thứ/ca
             if 'thu_hoc' not in df_c.columns:
                 df_c['thu_hoc'] = "Chưa xếp"
             if 'ca_hoc' not in df_c.columns:
                 df_c['ca_hoc'] = "Chưa xếp"
                 
-            # Đảm bảo điền giá trị "Chưa xếp" cho các ô bị NaN (nếu có cột nhưng dữ liệu trống)
             df_c['thu_hoc'] = df_c['thu_hoc'].fillna("Chưa xếp")
             df_c['ca_hoc'] = df_c['ca_hoc'].fillna("Chưa xếp")
 
