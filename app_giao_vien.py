@@ -652,22 +652,33 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
                 if user_in.strip() == "":
                     st.error("⚠️ Vui lòng nhập nội dung yêu cầu trước!")
                 else:
-                    with st.spinner("🤖 AI đang tự động soạn đề thi..."):
-                        try:
-                            # GIẢI PHÁP TỐI ƯU VÀ CỐ ĐỊNH: Chỉ sử dụng gemini-pro (phiên bản quốc dân, luôn hoạt động)
-                            mod = 'gemini-pro'
-                            
-                            prompt = f"""
-                            Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
-                            LOẠI BÀI TẬP: {task}
-                            YÊU CẦU CHI TIẾT: {user_in}
-                            HƯỚNG DẪN: Trình bày rõ ràng, đẹp mắt, bắt buộc có phần ĐÁP ÁN chi tiết ở cuối.
-                            """
-                            res = genai.GenerativeModel(mod).generate_content(prompt)
+                    with st.spinner("🤖 AI đang tự động dò tìm phiên bản hoạt động và soạn đề thi..."):
+                        prompt = f"""
+                        Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
+                        LOẠI BÀI TẬP: {task}
+                        YÊU CẦU CHI TIẾT: {user_in}
+                        HƯỚNG DẪN: Trình bày rõ ràng, đẹp mắt, bắt buộc có phần ĐÁP ÁN chi tiết ở cuối.
+                        """
+                        
+                        # CƠ CHẾ CHỐNG LỖI 404 TUYỆT ĐỐI: Dò tìm tự động qua các phiên bản
+                        test_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
+                        res = None
+                        last_error = ""
+                        
+                        for m_name in test_models:
+                            try:
+                                model = genai.GenerativeModel(m_name)
+                                res = model.generate_content(prompt)
+                                break  # Thành công thì lập tức thoát vòng lặp
+                            except Exception as e:
+                                last_error = str(e)
+                                continue  # Lỗi thì im lặng và thử model tiếp theo ngay lập tức
+                                
+                        if res:
                             st.success("🎉 Đã soạn xong đề thi! Cô giáo có thể Copy để sử dụng.")
                             st.markdown("---")
                             st.markdown(res.text)
-                        except Exception as e:
-                            st.error(f"⚠️ Lỗi kết nối AI: {e}")
+                        else:
+                            st.error(f"⚠️ Mạng AI của Google đang từ chối kết nối API Key này. Lỗi chi tiết: {last_error}")
     except ImportError:
         st.error("⚠️ Lỗi: Thư viện `google-generativeai` chưa được cài đặt trên hệ thống Cloud. Hãy đảm bảo bạn đã thêm nó vào file `requirements.txt` trên GitHub.")
