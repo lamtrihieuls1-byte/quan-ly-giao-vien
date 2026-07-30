@@ -8,7 +8,7 @@ SUPABASE_URL = "https://ymjwfregjyndewmlzhvk.supabase.co"
 SUPABASE_KEY = "sb_publishable_RlsBLKOJsnkBK2AhRGNlDA_6xN1y9HI" 
 PASSWORD_CO_GIAO = "123qwe" # Mật khẩu đăng nhập phần mềm
 
-# --- CẤU HÌNH API KEY CHO TRỢ LÝ AI (Đã tích hợp sẵn của bạn) ---
+# --- CẤU HÌNH API KEY CHO TRỢ LÝ AI ---
 DEFAULT_GEMINI_API_KEY = "AIzaSyDbYJg_-S9_1_Nkkc6zG1KZUWmaAKfo7RY"
 
 try:
@@ -45,10 +45,10 @@ if st.sidebar.button("🔓 Đăng Xuất"):
     st.session_state["authenticated"] = False
     st.rerun()
 st.sidebar.markdown("---")
-menu = ["🏠 Trang Chủ", "🎓 Quản lý Lớp & Học Sinh", "💰 Điểm danh & Học phí", "📚 Không gian Giáo án", "🤖 Trợ lý AI (Tạo bài tập)"]
+menu = ["🏠 Trang Chủ", "📅 Thời Khóa Biểu", "🎓 Quản lý Lớp & Học Sinh", "💰 Điểm danh & Học phí", "📚 Không gian Giáo án", "🤖 Trợ lý AI (Tạo bài tập)"]
 choice = st.sidebar.radio("Vui lòng chọn chức năng:", menu)
 st.sidebar.markdown("---")
-st.sidebar.info("Phần mềm hỗ trợ giảng dạy Tiếng Anh.\nĐám mây Supabase ☁️ & Trợ lý AI 🤖")
+st.sidebar.info("Phần mềm hỗ trợ giảng dạy Tiếng Anh.\nĐám mây Supabase ☁️ & Thời khóa biểu 📅")
 
 # ==================== ĐIỀU HƯỚNG CÁC TRANG ====================
 if choice == "🏠 Trang Chủ":
@@ -66,20 +66,85 @@ if choice == "🏠 Trang Chủ":
     col2.metric("Học sinh đang học", f"{total_students} Học sinh")
     col3.metric("Hệ thống Cloud", "Đã kết nối ☁️")
 
+elif choice == "📅 Thời Khóa Biểu":
+    st.title("📅 Thời Khóa Biểu Tuần (Sáng - Chiều - Tối)")
+    st.info("💡 Bảng thời khóa biểu tự động tổng hợp các lớp đang hoạt động theo ca và ngày trong tuần.")
+    
+    try:
+        res_c = supabase.table("classes").select("*").eq("status", "Đang hoạt động").execute()
+        res_st = supabase.table("students").select("id, class_id, status").eq("status", "Đang học").execute()
+        
+        if res_c.data:
+            classes_list = res_c.data
+            students_list = res_st.data if res_st.data else []
+            
+            # Đếm sĩ số học sinh đang học của từng lớp
+            from collections import Counter
+            class_counts = Counter([s['class_id'] for s in students_list])
+            
+            # Khung giờ các ca
+            ca_list = ["🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
+                       "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
+                       "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"]
+            
+            days_list = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+            
+            # Tạo bảng hiển thị
+            tkb_data = {day: ["-"] * len(ca_list) for day in days_list}
+            
+            for cls in classes_list:
+                c_day = cls.get('thu_hoc', 'Thứ Hai')
+                c_ca = cls.get('ca_hoc', '🌅 Sáng Ca 1 (07:30 - 09:00)')
+                c_name = cls['class_name']
+                c_id = cls['id']
+                siso = class_counts.get(c_id, 0)
+                
+                if c_day in days_list and c_ca in ca_list:
+                    row_idx = ca_list.index(c_ca)
+                    cell_content = f"📚 **{c_name}**\n👥 Sĩ số: {siso} HS"
+                    if tkb_data[c_day][row_idx] == "-":
+                        tkb_data[c_day][row_idx] = cell_content
+                    else:
+                        tkb_data[c_day][row_idx] += f"\n---\n📚 **{c_name}** ({siso} HS)"
+            
+            df_tkb = pd.DataFrame(tkb_data, index=ca_list)
+            st.dataframe(df_tkb, use_container_width=True)
+        else:
+            st.warning("⚠️ Chưa có lớp học nào đang hoạt động để hiển thị thời khóa biểu.")
+    except Exception as e:
+        st.error(f"⚠️ Lỗi hiển thị thời khóa biểu: {e}")
+
 elif choice == "🎓 Quản lý Lớp & Học Sinh":
     st.title("🎓 Quản lý Lớp học & Danh sách Học sinh")
     tab_lop, tab_hocsinh = st.tabs(["📁 Quản lý Lớp Học", "👨‍🎓 Quản lý Học Sinh"])
     
     with tab_lop:
-        with st.expander("➕ Bấm vào đây để THÊM LỚP MỚI", expanded=False):
+        with st.expander("➕ Bấm vào đây để THÊM LỚP MỚI (Có xếp lịch TKB)", expanded=False):
             with st.form("form_them_lop", clear_on_submit=True):
                 c1, c2, c3 = st.columns(3)
-                with c1: class_name = st.text_input("Tên Lớp (VD: Két 1)")
-                with c2: schedule = st.text_input("Lịch học")
+                with c1: class_name = st.text_input("Tên Lớp (VD: Lớp C1)")
+                with c2: sel_thu = st.selectbox("Thứ học trong tuần", ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"])
                 with c3: tuition_fee = st.number_input("Học phí / Buổi (VNĐ)", min_value=0, step=10000, value=50000)
-                if st.form_submit_button("Lưu Lớp Học") and class_name.strip():
-                    supabase.table("classes").insert({"class_name": class_name, "schedule": schedule, "tuition_fee": tuition_fee, "status": "Đang hoạt động"}).execute()
-                    st.success("✅ Đã thêm lớp lên mây!"); st.rerun()
+                
+                c4, c5 = st.columns(2)
+                with c4: 
+                    sel_ca = st.selectbox("Chọn Ca Học", [
+                        "🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
+                        "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
+                        "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"
+                    ])
+                with c5: schedule_note = st.text_input("Ghi chú lịch (VD: 2 buổi/tuần)", placeholder="Tùy chọn...")
+
+                if st.form_submit_button("Lưu Lớp Học Lên Mây") and class_name.strip():
+                    supabase.table("classes").insert({
+                        "class_name": class_name, 
+                        "schedule": schedule_note, 
+                        "tuition_fee": tuition_fee, 
+                        "status": "Đang hoạt động",
+                        "thu_hoc": sel_thu,
+                        "ca_hoc": sel_ca
+                    }).execute()
+                    st.success("✅ Đã thêm lớp và xếp lịch TKB thành công!"); st.rerun()
 
         with st.expander("✏️ Bấm vào đây để SỬA / XÓA thông tin Lớp học", expanded=False):
             res_c = supabase.table("classes").select("*").execute()
@@ -93,14 +158,33 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                 with st.form("edit_class_form"):
                     c1, c2, c3 = st.columns(3)
                     with c1: e_c_name = st.text_input("Tên Lớp", value=curr_c_data['class_name'])
-                    with c2: e_c_sched = st.text_input("Lịch học", value=curr_c_data['schedule'] if curr_c_data['schedule'] else "")
+                    with c2: 
+                        list_thu = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+                        idx_thu = list_thu.index(curr_c_data['thu_hoc']) if curr_c_data.get('thu_hoc') in list_thu else 0
+                        e_thu = st.selectbox("Thứ học", list_thu, index=idx_thu)
                     with c3: e_c_fee = st.number_input("Học phí / Buổi", min_value=0, step=10000, value=int(curr_c_data['tuition_fee']))
+                    
+                    c4, c5 = st.columns(2)
+                    with c4:
+                        list_ca = [
+                            "🌅 Sáng Ca 1 (07:30 - 09:00)", "🌅 Sáng Ca 2 (09:15 - 10:45)", 
+                            "☀️ Chiều Ca 1 (14:00 - 15:30)", "☀️ Chiều Ca 2 (15:45 - 17:15)", 
+                            "🌙 Tối Ca 1 (18:00 - 19:30)", "🌙 Tối Ca 2 (19:45 - 21:15)"
+                        ]
+                        idx_ca = list_ca.index(curr_c_data['ca_hoc']) if curr_c_data.get('ca_hoc') in list_ca else 0
+                        e_ca = st.selectbox("Ca học", list_ca, index=idx_ca)
+                    with c5:
+                        e_c_sched = st.text_input("Ghi chú lịch", value=curr_c_data['schedule'] if curr_c_data['schedule'] else "")
+                        
                     e_c_status = st.radio("Trạng thái Lớp:", ["Đang hoạt động", "Đã đóng"], index=0 if curr_c_data['status']=="Đang hoạt động" else 1, horizontal=True)
                     st.markdown("---")
                     del_class_confirm = st.checkbox("⚠️ Xác nhận XÓA VĨNH VIỄN lớp này")
                     btn1, btn2 = st.columns(2)
                     if btn1.form_submit_button("💾 Lưu Cập Nhật"):
-                        supabase.table("classes").update({"class_name": e_c_name, "schedule": e_c_sched, "tuition_fee": e_c_fee, "status": e_c_status}).eq("id", sel_class_id).execute()
+                        supabase.table("classes").update({
+                            "class_name": e_c_name, "schedule": e_c_sched, "tuition_fee": e_c_fee, 
+                            "status": e_c_status, "thu_hoc": e_thu, "ca_hoc": e_ca
+                        }).eq("id", sel_class_id).execute()
                         st.success("✅ Đã cập nhật!"); st.rerun()
                     if btn2.form_submit_button("🗑️ Xóa Lớp"):
                         if del_class_confirm:
@@ -113,11 +197,11 @@ elif choice == "🎓 Quản lý Lớp & Học Sinh":
                         else: st.error("⚠️ Phải tích xác nhận trước khi xóa.")
             else: st.info("Chưa có lớp.")
         
-        st.subheader("📋 Danh Sách Các Lớp")
+        st.subheader("📋 Danh Sách Các Lớp & Lịch Trình")
         res_c = supabase.table("classes").select("*").execute()
         if res_c.data:
-            df_c = pd.DataFrame(res_c.data)[['id', 'class_name', 'schedule', 'tuition_fee', 'status']]
-            df_c.columns = ['ID', 'Tên Lớp', 'Lịch Học', 'Học Phí', 'Trạng Thái']
+            df_c = pd.DataFrame(res_c.data)[['id', 'class_name', 'thu_hoc', 'ca_hoc', 'tuition_fee', 'status']]
+            df_c.columns = ['ID', 'Tên Lớp', 'Thứ Học', 'Ca Học', 'Học Phí', 'Trạng Thái']
             st.dataframe(df_c, use_container_width=True, hide_index=True)
 
     with tab_hocsinh:
