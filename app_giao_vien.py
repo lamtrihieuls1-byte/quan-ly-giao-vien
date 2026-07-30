@@ -8,8 +8,11 @@ SUPABASE_URL = "https://ymjwfregjyndewmlzhvk.supabase.co"
 SUPABASE_KEY = "sb_publishable_RlsBLKOJsnkBK2AhRGNlDA_6xN1y9HI" 
 PASSWORD_CO_GIAO = "123qwe" # Mật khẩu đăng nhập phần mềm
 
-# --- CẤU HÌNH API KEY CHO TRỢ LÝ AI ---
-DEFAULT_GEMINI_API_KEY = "AIzaSyDbYJg_-S9_1_Nkkc6zG1KZUWmaAKfo7RY"
+# Lấy API Key từ két sắt bảo mật của Streamlit (Không lộ code trên GitHub nữa)
+try:
+    DEFAULT_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except:
+    DEFAULT_GEMINI_API_KEY = ""
 
 try:
     from supabase import create_client, Client
@@ -634,37 +637,40 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
     try:
         import google.generativeai as genai
         
-        genai.configure(api_key=DEFAULT_GEMINI_API_KEY)
-        task = st.selectbox("📌 Chọn loại bài tập:", [
-            "10 câu Trắc nghiệm ABCD", 
-            "Điền từ vào chỗ trống", 
-            "Viết lại câu", 
-            "Đề thi thử vào 10 chuyên Lạng Sơn"
-        ])
-        user_in = st.text_area("📝 Nhập yêu cầu cụ thể:", placeholder="Ví dụ: Tạo đề thi thử bám sát đề chuyên Chu Văn An Lạng Sơn...")
-        
-        if st.button("🚀 Kích hoạt AI tạo đề"):
-            if user_in.strip() == "":
-                st.error("⚠️ Vui lòng nhập nội dung yêu cầu trước!")
-            else:
-                with st.spinner("🤖 AI đang tự động soạn đề thi..."):
-                    try:
-                        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                        mod = models[0] if models else 'gemini-pro'
-                        for m in models:
-                            if 'flash' in m.lower(): mod = m; break
-                        
-                        prompt = f"""
-                        Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
-                        LOẠI BÀI TẬP: {task}
-                        YÊU CẦU CHI TIẾT: {user_in}
-                        HƯỚNG DẪN: Trình bày rõ ràng, đẹp mắt, bắt buộc có phần ĐÁP ÁN chi tiết ở cuối.
-                        """
-                        res = genai.GenerativeModel(mod).generate_content(prompt)
-                        st.success("🎉 Đã soạn xong đề thi! Cô giáo có thể Copy để sử dụng.")
-                        st.markdown("---")
-                        st.markdown(res.text)
-                    except Exception as e:
-                        st.error(f"⚠️ Lỗi kết nối AI: {e}")
+        if not DEFAULT_GEMINI_API_KEY:
+            st.warning("⚠️ Vui lòng cấu hình GEMINI_API_KEY trong Streamlit Secrets để sử dụng.")
+        else:
+            genai.configure(api_key=DEFAULT_GEMINI_API_KEY)
+            task = st.selectbox("📌 Chọn loại bài tập:", [
+                "10 câu Trắc nghiệm ABCD", 
+                "Điền từ vào chỗ trống", 
+                "Viết lại câu", 
+                "Đề thi thử vào 10 chuyên Lạng Sơn"
+            ])
+            user_in = st.text_area("📝 Nhập yêu cầu cụ thể:", placeholder="Ví dụ: Tạo đề thi thử bám sát đề chuyên Chu Văn An Lạng Sơn...")
+            
+            if st.button("🚀 Kích hoạt AI tạo đề"):
+                if user_in.strip() == "":
+                    st.error("⚠️ Vui lòng nhập nội dung yêu cầu trước!")
+                else:
+                    with st.spinner("🤖 AI đang tự động soạn đề thi..."):
+                        try:
+                            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                            mod = models[0] if models else 'gemini-pro'
+                            for m in models:
+                                if 'flash' in m.lower(): mod = m; break
+                            
+                            prompt = f"""
+                            Bạn là một chuyên gia giáo dục và giáo viên tiếng Anh xuất sắc. Hãy thực hiện yêu cầu sau:
+                            LOẠI BÀI TẬP: {task}
+                            YÊU CẦU CHI TIẾT: {user_in}
+                            HƯỚNG DẪN: Trình bày rõ ràng, đẹp mắt, bắt buộc có phần ĐÁP ÁN chi tiết ở cuối.
+                            """
+                            res = genai.GenerativeModel(mod).generate_content(prompt)
+                            st.success("🎉 Đã soạn xong đề thi! Cô giáo có thể Copy để sử dụng.")
+                            st.markdown("---")
+                            st.markdown(res.text)
+                        except Exception as e:
+                            st.error(f"⚠️ Lỗi kết nối AI: {e}")
     except ImportError:
         st.error("⚠️ Lỗi: Thư viện `google-generativeai` chưa được cài đặt trên hệ thống Cloud. Hãy đảm bảo bạn đã thêm nó vào file `requirements.txt` trên GitHub.")
