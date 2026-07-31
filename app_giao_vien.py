@@ -661,7 +661,7 @@ elif choice == "🤖 Trợ lý AI (Tạo bài tập)":
                         """
                         
                         # CƠ CHẾ CHỐNG LỖI 404 TUYỆT ĐỐI: Dò tìm tự động qua các phiên bản
-                        test_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
+                        test_models = ['gemini-3.6-Flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro']
                         res = None
                         last_error = ""
                         
